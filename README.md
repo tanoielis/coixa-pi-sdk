@@ -3,7 +3,7 @@
 A lightweight TypeScript/JavaScript SDK for interacting with the Pi Network blockchain, designed for wallet management and transaction operations. Part of the [Coixa Wallet](https://coixa.xyz) project.
 
 ## Features
-- Generate and manage Pi wallets (mnemonic, public/secret keys)
+- Generate and manage Pi wallets (mnemonic, public/secret keys, or secret key)
 - Send and receive Pi transactions
 - Check account balances and activation status
 - Activate new accounts (TESTNET only)
@@ -21,33 +21,47 @@ npm install coixa-pi-sdk
 ```typescript
 import { PiWallet } from 'coixa-pi-sdk';
 
-// Generate a new wallet
+// Generate a new wallet (random mnemonic)
 const wallet = PiWallet.generate();
 console.log('Mnemonic:', wallet.mnemonic);
 console.log('Public Key:', wallet.publicKey);
 
 // Load an existing wallet from mnemonic
-const existingWallet = PiWallet.fromMnemonic('your mnemonic here');
+const walletFromMnemonic = PiWallet.fromMnemonic('your mnemonic here');
+
+// Load a wallet from a raw seed
+// const walletFromSeed = PiWallet.fromSeed(yourSeedUint8Array);
+
+// Load a wallet from a Stellar/Pi secret key
+const walletFromSecret = PiWallet.fromSecret('SXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX');
 
 // Check balance
-await existingWallet.loadAccount();
-console.log('Balance:', existingWallet.balance);
+await walletFromMnemonic.loadAccount();
+console.log('Balance:', walletFromMnemonic.balance);
 
 // Send Pi
-await existingWallet.sendTransaction('DEST_PUBLIC_KEY', '1.5', 'Optional memo');
+await walletFromMnemonic.sendTransaction('DEST_PUBLIC_KEY', '1.5', 'Optional memo');
 ```
 
 ## API Overview
 
-### PiWallet
-- `constructor(mnemonic?: string, network?: PiNetwork)`
-- `static generate(): PiWallet`
+### PiWallet (use static methods to create)
+- `static generate(network?: PiNetwork): PiWallet`
 - `static fromMnemonic(mnemonic: string, network?: PiNetwork): PiWallet`
 - `static fromSeed(seed: Uint8Array, network?: PiNetwork): PiWallet`
+- `static fromSecret(secretKey: string, network?: PiNetwork): PiWallet`
 - `public async loadAccount()`
 - `public async payments(limit?: number)`
-- `public async sendTransaction(destPublicKey: string, amount: string, memo?: string)`
-- `public async activateAccount(destPublicKey: string)`
+- `public sendTransaction(destPublicKey: string, amount: string, memo?: string)`
+- `public async activateAccount(destPublicKey: string)` (TESTNET only)
+
+#### Properties
+- `mnemonic?: string` — Wallet mnemonic phrase (undefined if created from secret)
+- `seed?: Uint8Array` — Wallet seed (undefined if created from secret)
+- `publicKey: string` — Public key (address)
+- `secretKey: string` — Secret key
+- `balance: number | undefined` — Account balance (after minimum Pi requirement)
+- `IS_ACTIVATED: boolean` — Whether the account is activated
 
 ### PiApi
 - `public async sendTransaction(sourceSecret: string, destPublicKey: string, amount: string, memo?: string)`

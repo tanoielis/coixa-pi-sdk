@@ -12,62 +12,21 @@ export class PiWallet extends PiApi {
   public publicKey: string;
   public secretKey: string;
   public balance: number | undefined;
-  public account: Horizon.AccountResponse | null;
+  public account: Horizon.AccountResponse | null = null;
   public IS_ACTIVATED = true;
 
-  constructor(
-    mnemonic?: string,
+  private constructor(
+    publicKey: string,
+    secretKey: string,
     network?: PiNetwork,
+    mnemonic?: string,
     seed?: Uint8Array<ArrayBufferLike>
   ) {
     super(network);
-
-    this.seed = seed;
+    this.publicKey = publicKey;
+    this.secretKey = secretKey;
     this.mnemonic = mnemonic;
-    let derivedSeed: Uint8Array;
-
-    if (seed) {
-      this.mnemonic = ""; // no mnemonic in this flow
-      derivedSeed = seed;
-    } else {
-      if (mnemonic) {
-        if (!WalletUtils.validateMnemonic(mnemonic)) {
-          throw new InvalidMnemonicError();
-        }
-        this.mnemonic = mnemonic;
-      } else {
-        this.mnemonic = WalletUtils.generateMnemonic();
-      }
-      derivedSeed = WalletUtils.mnemonicToSeed(this.mnemonic);
-    }
-
-    const hdKey =
-      ed25519.HDKey.fromMasterSeed(derivedSeed).derive(DERIVATION_PATH);
-
-    if (!hdKey || !hdKey.privateKey) {
-      throw new WalletDerivationError();
-    }
-
-    const keypair = Keypair.fromRawEd25519Seed(Buffer.from(hdKey.privateKey));
-
-    this.publicKey = keypair.publicKey();
-    this.secretKey = keypair.secret();
-    let account = null;
-    let balance;
-    this.loadAccount().then((res) => {
-      this.account = res;
-      balance = parseFloat(
-        this.account?.balances.find((b) => b.asset_type === "native")
-          ?.balance ?? ""
-      );
-      /**
-       * Pi network requires a minimum balance of 1 Pi.
-       * This is a placeholder to ensure the balance is at least 1 Pi.
-       */
-      balance -= 1;
-    });
-    this.account = account;
-    this.balance = balance;
+    this.seed = seed;
   }
   /**
    *
@@ -75,7 +34,23 @@ export class PiWallet extends PiApi {
    * @returns new PiWallet instance
    */
   static fromMnemonic(mnemonic: string, network?: PiNetwork): PiWallet {
-    return new PiWallet(mnemonic, network);
+    if (!WalletUtils.validateMnemonic(mnemonic)) {
+      throw new InvalidMnemonicError();
+    }
+    const seed = WalletUtils.mnemonicToSeed(mnemonic);
+    const hdKey = ed25519.HDKey.fromMasterSeed(seed).derive(DERIVATION_PATH);
+
+    if (!hdKey?.privateKey) throw new WalletDerivationError();
+
+    const keypair = Keypair.fromRawEd25519Seed(Buffer.from(hdKey.privateKey));
+
+    return new PiWallet(
+      keypair.publicKey(),
+      keypair.secret(),
+      network,
+      mnemonic,
+      seed
+    );
   }
 
   /**
@@ -87,29 +62,56 @@ export class PiWallet extends PiApi {
     seed: Uint8Array<ArrayBufferLike>,
     network?: PiNetwork
   ): PiWallet {
-    return new PiWallet(undefined, network, seed);
+    const hdKey = ed25519.HDKey.fromMasterSeed(seed).derive(DERIVATION_PATH);
+
+    if (!hdKey?.privateKey) throw new WalletDerivationError();
+
+    const keypair = Keypair.fromRawEd25519Seed(Buffer.from(hdKey.privateKey));
+
+    return new PiWallet(
+      keypair.publicKey(),
+      keypair.secret(),
+      network,
+      undefined,
+      seed
+    );
+  }
+
+  /**
+   * Create a PiWallet from an existing secret key (S...)
+   * @param secretKey The Stellar/Pi secret key
+   * @param network Pi network type
+   */
+  static fromSecret(secretKey: string, network?: PiNetwork): PiWallet {
+    try {
+      const keypair = Keypair.fromSecret(secretKey);
+      return new PiWallet(keypair.publicKey(), keypair.secret(), network);
+    } catch (err: any) {
+      throw new Error(`Invalid secret key: ${err.message || err}`);
+    }
   }
 
   /**
    * Generate a new Pi network compatible wallet
    * @returns new PiWallet instance
    */
-  static generate(): PiWallet {
-    return new PiWallet();
+  static generate(network?: PiNetwork): PiWallet {
+    const mnemonic = WalletUtils.generateMnemonic();
+    return PiWallet.fromMnemonic(mnemonic, network);
   }
 
   public async loadAccount() {
     try {
-      let account = await this.server.loadAccount(this.publicKey);
-      this.balance = parseFloat(
-        account.balances.find((b) => b.asset_type === "native")?.balance ?? ""
-      );
-      this.balance -= 1; // Adjust for minimum balance requirement
-      return this.account;
+      const account = await this.server.loadAccount(this.publicKey);
+      this.account = account;
+      this.balance =
+        parseFloat(
+          account.balances.find((b) => b.asset_type === "native")?.balance ??
+            "0"
+        ) - 1; // Adjust for minimum balance requirement
+      return account;
     } catch (err: any) {
-      console.log(err.response);
       if (err.response?.status == 404) {
-        // Account does not exist, create a new one
         this.IS_ACTIVATED = false;
       }
       throw new Error(

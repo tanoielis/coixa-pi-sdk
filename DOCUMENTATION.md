@@ -44,9 +44,19 @@ console.log('Mnemonic:', wallet.mnemonic);
 console.log('Public Key:', wallet.publicKey);
 ```
 
-### Load an Existing Wallet
+### Load an Existing Wallet from Mnemonic
 ```typescript
 const wallet = PiWallet.fromMnemonic('your mnemonic here');
+```
+
+### Load a Wallet from a Raw Seed
+```typescript
+// const wallet = PiWallet.fromSeed(yourSeedUint8Array);
+```
+
+### Load a Wallet from a Secret Key
+```typescript
+const wallet = PiWallet.fromSecret('SXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX');
 ```
 
 ### Check Balance
@@ -65,30 +75,27 @@ await wallet.sendTransaction('DEST_PUBLIC_KEY', '1.5', 'Optional memo');
 ## API Reference
 
 ### PiWallet
-The main wallet class. Extends `PiApi`.
-
-#### Constructor
-- `new PiWallet(mnemonic?: string, network?: PiNetwork)`
-  - `mnemonic` (optional): BIP39 mnemonic phrase. If omitted, a new one is generated.
-  - `network` (optional): `'mainnet'` or `'testnet'`. Default: `'testnet'`.
+The main wallet class. **Use static methods to create instances.**
 
 #### Static Methods
-- `PiWallet.generate(): PiWallet` — Generate a new wallet with a random mnemonic.
+- `PiWallet.generate(network?: PiNetwork): PiWallet` — Generate a new wallet with a random mnemonic.
 - `PiWallet.fromMnemonic(mnemonic: string, network?: PiNetwork): PiWallet` — Load a wallet from a mnemonic.
 - `PiWallet.fromSeed(seed: Uint8Array, network?: PiNetwork): PiWallet` — Load a wallet from a raw seed.
+- `PiWallet.fromSecret(secretKey: string, network?: PiNetwork): PiWallet` — Load a wallet from a Stellar/Pi secret key.
 
 #### Instance Methods
 - `async loadAccount()` — Loads account details and balance from the network.
 - `async payments(limit?: number)` — Fetches recent payment operations (default: 10).
-- `async sendTransaction(destPublicKey: string, amount: string, memo?: string)` — Sends Pi to another account.
-- `async activateAccount(destPublicKey: string)` — Activates a new account (requires funding).
+- `sendTransaction(destPublicKey: string, amount: string, memo?: string)` — Sends Pi to another account.
+- `async activateAccount(destPublicKey: string)` — Activates a new account (TESTNET only; requires funding).
 
 #### Properties
-- `mnemonic: string` — Wallet mnemonic phrase.
-- `publicKey: string` — Public key (address).
-- `secretKey: string` — Secret key.
-- `balance: number | undefined` — Account balance (after minimum Pi requirement).
-- `IS_ACTIVATED: boolean` — Whether the account is activated.
+- `mnemonic?: string` — Wallet mnemonic phrase (undefined if created from secret)
+- `seed?: Uint8Array` — Wallet seed (undefined if created from secret)
+- `publicKey: string` — Public key (address)
+- `secretKey: string` — Secret key
+- `balance: number | undefined` — Account balance (after minimum Pi requirement)
+- `IS_ACTIVATED: boolean` — Whether the account is activated
 
 ---
 
@@ -102,7 +109,7 @@ Handles low-level Pi Network operations.
 - `async sendTransaction(sourceSecret: string, destPublicKey: string, amount: string, memo?: string)` — Send Pi from a source account.
 - `async payments(publicKey: string, limit?: number)` — Fetch payment operations for an account.
 - `async isAccountActivated(publicKey: string): Promise<boolean>` — Check if an account is activated.
-- `async activateAccount(sourceSecret: string, publicKey: string, startingBalance?: number)` — Activate a new account with a starting balance (default: 1 Pi).
+- `async activateAccount(sourceSecret: string, publicKey: string, startingBalance?: number)` — Activate a new account with a starting balance (default: 1 Pi; TESTNET only).
 
 #### Properties
 - `server: Horizon.Server` — Underlying Stellar server instance.
@@ -129,7 +136,7 @@ Custom error classes for wallet operations.
 
 ## Example Flows
 
-### 1. Create and Fund a New Wallet
+### 1. Create and Fund a New Wallet (TESTNET only)
 ```typescript
 import { PiWallet } from 'coixa-pi-sdk';
 
@@ -137,16 +144,21 @@ import { PiWallet } from 'coixa-pi-sdk';
 const wallet = PiWallet.generate();
 console.log('Public Key:', wallet.publicKey);
 
-// Fund the wallet from another account (activation required)
+// Fund the wallet from another account (activation required, TESTNET only)
 // await wallet.activateAccount(wallet.publicKey); // Requires a source account with Pi
 ```
 
-### 2. Send Pi to Another Account
+### 2. Load a Wallet from a Secret Key
+```typescript
+const wallet = PiWallet.fromSecret('SXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX');
+```
+
+### 3. Send Pi to Another Account
 ```typescript
 await wallet.sendTransaction('DEST_PUBLIC_KEY', '2.0', 'Payment for services');
 ```
 
-### 3. Fetch Payment History
+### 4. Fetch Payment History
 ```typescript
 const payments = await wallet.payments(5);
 console.log(payments);

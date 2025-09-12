@@ -7,26 +7,42 @@ import { PiApi, type PiNetwork, type PiTx } from "./PiApi";
 const DERIVATION_PATH = "m/44'/314159'/0'";
 
 export class PiWallet extends PiApi {
-  public mnemonic: string;
+  public mnemonic: string | undefined;
+  public seed: Uint8Array<ArrayBufferLike> | undefined;
   public publicKey: string;
   public secretKey: string;
   public balance: number | undefined;
   public account: Horizon.AccountResponse | null;
   public IS_ACTIVATED = true;
 
-  constructor(mnemonic?: string, network?: PiNetwork) {
+  constructor(
+    mnemonic?: string,
+    network?: PiNetwork,
+    seed?: Uint8Array<ArrayBufferLike>
+  ) {
     super(network);
-    if (mnemonic) {
-      if (!WalletUtils.validateMnemonic(mnemonic)) {
-        throw new InvalidMnemonicError();
-      }
-      this.mnemonic = mnemonic;
+
+    this.seed = seed;
+    this.mnemonic = mnemonic;
+    let derivedSeed: Uint8Array;
+
+    if (seed) {
+      this.mnemonic = ""; // no mnemonic in this flow
+      derivedSeed = seed;
     } else {
-      this.mnemonic = WalletUtils.generateMnemonic();
+      if (mnemonic) {
+        if (!WalletUtils.validateMnemonic(mnemonic)) {
+          throw new InvalidMnemonicError();
+        }
+        this.mnemonic = mnemonic;
+      } else {
+        this.mnemonic = WalletUtils.generateMnemonic();
+      }
+      derivedSeed = WalletUtils.mnemonicToSeed(this.mnemonic);
     }
 
-    const seed = WalletUtils.mnemonicToSeed(this.mnemonic);
-    const hdKey = ed25519.HDKey.fromMasterSeed(seed).derive(DERIVATION_PATH);
+    const hdKey =
+      ed25519.HDKey.fromMasterSeed(derivedSeed).derive(DERIVATION_PATH);
 
     if (!hdKey || !hdKey.privateKey) {
       throw new WalletDerivationError();
@@ -71,20 +87,7 @@ export class PiWallet extends PiApi {
     seed: Uint8Array<ArrayBufferLike>,
     network?: PiNetwork
   ): PiWallet {
-    const hdKey = ed25519.HDKey.fromMasterSeed(seed).derive(DERIVATION_PATH);
-
-    if (!hdKey || !hdKey.privateKey) {
-      throw new WalletDerivationError();
-    }
-
-    const keypair = Keypair.fromRawEd25519Seed(Buffer.from(hdKey.privateKey));
-
-    const wallet = new PiWallet(undefined, network);
-    wallet.mnemonic = ""; // no mnemonic available
-    wallet.publicKey = keypair.publicKey();
-    wallet.secretKey = keypair.secret();
-
-    return wallet;
+    return new PiWallet(undefined, network, seed);
   }
 
   /**

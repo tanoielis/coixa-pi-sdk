@@ -1,0 +1,22 @@
+{
+  "name": "coixa-pi-sdk",
+  "version": "0.1.0",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsup src/index.ts --dts",
+    "dev": "tsup src/index.ts --dts --watch",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.1",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "@stellar/stellar-sdk": "^14.1.1",
+    "bip39": "^3.1.0",
+    "micro-key-producer": "^0.8.1"
+  }
+}

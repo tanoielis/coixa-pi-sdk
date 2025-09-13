@@ -65,7 +65,6 @@ export class PiApi {
     try {
       const account = await this.server.loadAccount(sourcePublicKey);
       const fee = await this.server.fetchBaseFee();
-      console.log(account, fee);
       const _memo = memo ? Memo.text(memo) : undefined;
 
       const transaction = new TransactionBuilder(account, {
@@ -84,10 +83,8 @@ export class PiApi {
         .build();
       transaction.sign(sourceKeypair);
       const response = await this.server.submitTransaction(transaction);
-      console.log(response);
       return response;
     } catch (error: any) {
-      console.log(error);
       if (error.response && error.response.status === 400) {
         throw new Error(`Transaction failed: ${error.response.data.details}`);
       }
@@ -115,7 +112,6 @@ export class PiApi {
         return false;
       }
       // For other errors, we can assume the account is not activated
-      console.error("Error checking account activation:", err);
       throw new Error(`Failed to check account activation: ${err.message}`);
     }
   }
@@ -155,10 +151,8 @@ export class PiApi {
         .build();
       transaction.sign(sourceKeypair);
       const response = await this.server.submitTransaction(transaction);
-      console.log("Activation response:", response);
       return response;
     } catch (err: any) {
-      console.error(err);
       if (err.response && err.response.status === 400) {
         throw new Error(`Activation failed: ${err.response.data.details}`);
       }

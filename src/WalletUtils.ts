@@ -1,16 +1,16 @@
-import * as bip39 from "bip39";
-import type { Buffer } from "buffer";
+import { generateMnemonic, validateMnemonic, mnemonicToSeed } from "@scure/bip39";
+import { wordlist } from "@scure/bip39/wordlists/english";
 
 export class WalletUtils {
   static generateMnemonic(strength: 128 | 256 = 256): string {
-    return bip39.generateMnemonic(strength);
+    return generateMnemonic(wordlist, strength);
   }
 
   static validateMnemonic(mnemonic: string): boolean {
-    return bip39.validateMnemonic(mnemonic);
+    return validateMnemonic(mnemonic, wordlist);
   }
 
-  static mnemonicToSeed(mnemonic: string): Buffer {
-    return bip39.mnemonicToSeedSync(mnemonic);
+  static async mnemonicToSeed(mnemonic: string): Promise<Uint8Array> {
+    return await mnemonicToSeed(mnemonic); // returns Uint8Array (Edge-safe)
   }
 }

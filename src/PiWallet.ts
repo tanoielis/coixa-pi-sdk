@@ -33,11 +33,11 @@ export class PiWallet extends PiApi {
    * @param mnemonic The secret passphrase
    * @returns new PiWallet instance
    */
-  static fromMnemonic(mnemonic: string, network?: PiNetwork): PiWallet {
+  static async fromMnemonic(mnemonic: string, network?: PiNetwork): Promise<PiWallet> {
     if (!WalletUtils.validateMnemonic(mnemonic)) {
       throw new InvalidMnemonicError();
     }
-    const seed = WalletUtils.mnemonicToSeed(mnemonic);
+    const seed = await WalletUtils.mnemonicToSeed(mnemonic);
     const hdKey = ed25519.HDKey.fromMasterSeed(seed).derive(DERIVATION_PATH);
 
     if (!hdKey?.privateKey) throw new WalletDerivationError();
@@ -95,9 +95,9 @@ export class PiWallet extends PiApi {
    * Generate a new Pi network compatible wallet
    * @returns new PiWallet instance
    */
-  static generate(network?: PiNetwork): PiWallet {
+  static async generate(network?: PiNetwork): Promise<PiWallet> {
     const mnemonic = WalletUtils.generateMnemonic();
-    return PiWallet.fromMnemonic(mnemonic, network);
+    return await PiWallet.fromMnemonic(mnemonic, network);
   }
 
   public async loadAccount() {
